@@ -3,6 +3,8 @@ alfred-hue
 
 An Alfred workflow for controlling Hue lights
 
+![Screenshot](/workflow/screenshot.png?raw=true)
+
 Installation
 ------------
 
