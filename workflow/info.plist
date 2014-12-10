@@ -186,7 +186,7 @@
 		</dict>
 	</array>
 	<key>readme</key>
-	<string></string>
+	<string>Version 1.0.1</string>
 	<key>uidata</key>
 	<dict>
 		<key>1E289DF9-CD37-46EB-A73F-51576C074734</key>
@@ -216,6 +216,6 @@
 		</dict>
 	</dict>
 	<key>webaddress</key>
-	<string></string>
+	<string>https://github.com/jason0x43/alfred-hue</string>
 </dict>
 </plist>
