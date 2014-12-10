@@ -84,7 +84,7 @@ func (t HubCommand) MenuItem() alfred.Item {
 	return alfred.Item{
 		Title:        t.Keyword(),
 		Autocomplete: t.Keyword() + " ",
-		Valid:        alfred.INVALID,
+		Valid:        alfred.Invalid,
 		Subtitle:     "Select a Hue hub to connect to"}
 }
 
@@ -143,7 +143,7 @@ func (t LevelCommand) MenuItem() alfred.Item {
 	return alfred.Item{
 		Title:        t.Keyword(),
 		Autocomplete: t.Keyword() + " ",
-		Valid:        alfred.INVALID,
+		Valid:        alfred.Invalid,
 		Subtitle:     "Change the light level for all lights"}
 }
 
@@ -169,7 +169,7 @@ func (c LevelCommand) Items(prefix, query string) ([]alfred.Item, error) {
 	if count == 0 {
 		items = append(items, alfred.Item{
 			Title: fmt.Sprintf("No lights are currently on"),
-			Valid: alfred.INVALID,
+			Valid: alfred.Invalid,
 		})
 		return items, nil
 	}
@@ -183,7 +183,7 @@ func (c LevelCommand) Items(prefix, query string) ([]alfred.Item, error) {
 	if query == "" {
 		items = append(items, alfred.Item{
 			Title: fmt.Sprintf("Level: %v", level),
-			Valid: alfred.INVALID,
+			Valid: alfred.Invalid,
 		})
 	} else {
 		item := alfred.Item{
@@ -194,7 +194,7 @@ func (c LevelCommand) Items(prefix, query string) ([]alfred.Item, error) {
 		if err == nil && val >= 0 && val < 256 {
 			item.Arg = "level " + query
 		} else {
-			item.Valid = alfred.INVALID
+			item.Valid = alfred.Invalid
 			item.Subtitle = "Enter an integer between 0 and 255"
 		}
 
@@ -259,7 +259,7 @@ func (t SceneCommand) MenuItem() alfred.Item {
 	return alfred.Item{
 		Title:        t.Keyword(),
 		Autocomplete: t.Keyword() + " ",
-		Valid:        alfred.INVALID,
+		Valid:        alfred.Invalid,
 		Subtitle:     "Choose a scene"}
 }
 
@@ -335,7 +335,7 @@ func (t LightCommand) MenuItem() alfred.Item {
 	return alfred.Item{
 		Title:        t.Keyword(),
 		Autocomplete: t.Keyword() + " ",
-		Valid:        alfred.INVALID,
+		Valid:        alfred.Invalid,
 		Subtitle:     "Control individual lights"}
 }
 
@@ -355,7 +355,7 @@ func (c LightCommand) Items(prefix, query string) ([]alfred.Item, error) {
 					Title:        name,
 					Arg:          fmt.Sprintf("%s %s %s", c.Keyword(), id, state),
 					Icon:         "off.png",
-					Autocomplete: prefix + id + alfred.SEPARATOR + " "}
+					Autocomplete: prefix + id + alfred.Separator + " "}
 
 				if light.State.On {
 					item.Icon = "on.png"
@@ -369,7 +369,7 @@ func (c LightCommand) Items(prefix, query string) ([]alfred.Item, error) {
 	} else {
 		id := parts[0]
 		light := lights[id]
-		prefix += id + alfred.SEPARATOR + " "
+		prefix += id + alfred.Separator + " "
 		property := strings.ToLower(parts[1])
 
 		log.Printf("id: %v", id)
@@ -415,7 +415,7 @@ func (c LightCommand) Items(prefix, query string) ([]alfred.Item, error) {
 			if _, err := strconv.Atoi(parts[2]); err == nil {
 				item.Arg = fmt.Sprintf("level %s %s", id, parts[2])
 			} else {
-				item.Valid = alfred.INVALID
+				item.Valid = alfred.Invalid
 				item.SubtitleAll = fmt.Sprintf("Invalid number '%s'", parts[2])
 			}
 		default:
@@ -443,8 +443,8 @@ func (c LightCommand) Items(prefix, query string) ([]alfred.Item, error) {
 				items = append(items, alfred.Item{
 					Title:        fmt.Sprintf("Name: %s", light.Name),
 					Icon:         icon,
-					Valid:        alfred.INVALID,
-					Autocomplete: prefix + "Name" + alfred.SEPARATOR + " ",
+					Valid:        alfred.Invalid,
+					Autocomplete: prefix + "Name" + alfred.Separator + " ",
 				})
 			}
 
@@ -452,8 +452,8 @@ func (c LightCommand) Items(prefix, query string) ([]alfred.Item, error) {
 				items = append(items, alfred.Item{
 					Title:        fmt.Sprintf("Level: %d", light.State.Brightness),
 					Icon:         icon,
-					Valid:        alfred.INVALID,
-					Autocomplete: prefix + "Level" + alfred.SEPARATOR + " ",
+					Valid:        alfred.Invalid,
+					Autocomplete: prefix + "Level" + alfred.Separator + " ",
 				})
 			}
 		}
@@ -498,7 +498,7 @@ func (t SyncCommand) MenuItem() alfred.Item {
 	return alfred.Item{
 		Title:        t.Keyword(),
 		Autocomplete: t.Keyword(),
-		Valid:        alfred.INVALID,
+		Valid:        alfred.Invalid,
 		Subtitle:     "Download your scenes from MeetHue.com"}
 }
 
