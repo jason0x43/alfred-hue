@@ -112,7 +112,7 @@ func (c HubCommand) Do(query string) (string, error) {
 	}
 
 	ipAddress := query
-	session, err := hue.NewSession(ipAddress, "jason0x43.alfred-hue")
+	session, err := hue.NewSession(ipAddress, "jason0x43-alfred-hue")
 
 	if err != nil {
 		c.workflow.ShowMessage("There was an error accessing your hub:\n\n" + err.Error())
