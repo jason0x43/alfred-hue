@@ -232,9 +232,9 @@ func (c LevelCommand) Do(query string) (out string, err error) {
 		if id == "" || i == id {
 			if light.State.On {
 				light.State.Brightness = level
-				err := session.SetLightState(id, light.State)
+				err := session.SetLightState(light.Id, light.State)
 				if err != nil {
-					log.Printf("Error setting state for %v\n", id)
+					log.Printf("Error setting state for %v\n", light.Id)
 				}
 			}
 		}
