@@ -30,6 +30,17 @@
 				<string></string>
 			</dict>
 		</array>
+		<key>9B494A76-F24D-40D0-A86D-2F4E09CD2403</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>43A3E741-44F2-4275-A267-808A9DA705EE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+			</dict>
+		</array>
 		<key>A4595B9E-80A7-444F-9A7F-DCE60F41AE86</key>
 		<array>
 			<dict>
@@ -68,6 +79,17 @@
 				<string></string>
 			</dict>
 		</array>
+		<key>C5965BD9-7CDE-4744-BA54-BDB010EFCF2A</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>43A3E741-44F2-4275-A267-808A9DA705EE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>Jason Cheatham</string>
@@ -82,29 +104,20 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>escaping</key>
-				<integer>4</integer>
-				<key>script</key>
-				<string>./alfred-hue do "{query}"</string>
-				<key>type</key>
-				<integer>0</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>A4595B9E-80A7-444F-9A7F-DCE60F41AE86</string>
-			<key>version</key>
-			<integer>0</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>argumenttype</key>
 				<integer>1</integer>
 				<key>escaping</key>
 				<integer>4</integer>
 				<key>keyword</key>
 				<string>hue</string>
+				<key>queuedelaycustom</key>
+				<integer>1</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<false/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
 				<key>runningsubtext</key>
 				<string>Talking to hub...</string>
 				<key>script</key>
@@ -138,7 +151,28 @@
 			<key>type</key>
 			<string>alfred.workflow.action.script</string>
 			<key>uid</key>
-			<string>43A3E741-44F2-4275-A267-808A9DA705EE</string>
+			<string>A4595B9E-80A7-444F-9A7F-DCE60F41AE86</string>
+			<key>version</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argument</key>
+				<string>scenes 5929867467-on-0</string>
+				<key>argumenttype</key>
+				<integer>3</integer>
+				<key>triggerid</key>
+				<string>hue-desk-work</string>
+				<key>triggername</key>
+				<string>Desk Work</string>
+				<key>workflowonly</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.remote</string>
+			<key>uid</key>
+			<string>9B494A76-F24D-40D0-A86D-2F4E09CD2403</string>
 			<key>version</key>
 			<integer>0</integer>
 		</dict>
@@ -180,13 +214,51 @@
 			<key>type</key>
 			<string>alfred.workflow.action.script</string>
 			<key>uid</key>
+			<string>43A3E741-44F2-4275-A267-808A9DA705EE</string>
+			<key>version</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>escaping</key>
+				<integer>4</integer>
+				<key>script</key>
+				<string>./alfred-hue do "{query}"</string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
 			<string>1E289DF9-CD37-46EB-A73F-51576C074734</string>
+			<key>version</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argument</key>
+				<string>scenes c3a38c0fd-on-0</string>
+				<key>argumenttype</key>
+				<integer>3</integer>
+				<key>triggerid</key>
+				<string>hue-blue-rain</string>
+				<key>triggername</key>
+				<string>Blue Rain</string>
+				<key>workflowonly</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.remote</string>
+			<key>uid</key>
+			<string>C5965BD9-7CDE-4744-BA54-BDB010EFCF2A</string>
 			<key>version</key>
 			<integer>0</integer>
 		</dict>
 	</array>
 	<key>readme</key>
-	<string>Version: 1.0.2</string>
+	<string>Version: 1.0.3</string>
 	<key>uidata</key>
 	<dict>
 		<key>1E289DF9-CD37-46EB-A73F-51576C074734</key>
@@ -204,6 +276,11 @@
 			<key>ypos</key>
 			<real>130</real>
 		</dict>
+		<key>9B494A76-F24D-40D0-A86D-2F4E09CD2403</key>
+		<dict>
+			<key>ypos</key>
+			<real>130</real>
+		</dict>
 		<key>A4595B9E-80A7-444F-9A7F-DCE60F41AE86</key>
 		<dict>
 			<key>ypos</key>
@@ -212,7 +289,12 @@
 		<key>B405E4D9-644C-40FA-8953-512E7193D99A</key>
 		<dict>
 			<key>ypos</key>
-			<real>130</real>
+			<real>10</real>
+		</dict>
+		<key>C5965BD9-7CDE-4744-BA54-BDB010EFCF2A</key>
+		<dict>
+			<key>ypos</key>
+			<real>250</real>
 		</dict>
 	</dict>
 	<key>webaddress</key>

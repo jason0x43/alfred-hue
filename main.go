@@ -3,35 +3,45 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	_log "log"
 	"os"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jason0x43/go-alfred"
 	"github.com/jason0x43/go-hue"
 )
 
-type Config struct {
-	IpAddress string
+var log = _log.New(os.Stderr, "[hue] ", _log.LstdFlags)
+
+type hueConfig struct {
+	IPAddress string
 	Username  string
-	ApiToken  string
+	APIToken  string
 }
 
-type Cache struct {
-	Scenes []hue.MeetHueScene
+type hueCache struct {
+	LastUpdate    time.Time
+	Lights        map[string]hue.Light
+	Scenes        map[string]hue.Scene
+	MeetHueScenes map[string]hue.MeetHueScene
+	Groups        map[string]hue.Group
+	LastMHUpdate  time.Time
+	MHScenes      []hue.MeetHueScene
 }
 
 var configFile string
 var cacheFile string
-var config Config
-var cache Cache
+var config hueConfig
+var cache hueCache
+var workflow alfred.Workflow
 
 func main() {
-	workflow, err := alfred.OpenWorkflow(".", true)
-	if err != nil {
+	var err error
+	if workflow, err = alfred.OpenWorkflow(".", true); err != nil {
 		fmt.Printf("Error: %s", err)
 		os.Exit(1)
 	}
@@ -42,52 +52,48 @@ func main() {
 	log.Println("Using config file", configFile)
 	log.Println("Using cache file", cacheFile)
 
-	err = alfred.LoadJson(configFile, &config)
-	if err != nil {
+	if err = alfred.LoadJSON(configFile, &config); err != nil {
 		log.Println("Error loading config:", err)
 	}
 
-	alfred.LoadJson(cacheFile, &cache)
-	if err != nil {
+	if err = alfred.LoadJSON(cacheFile, &cache); err != nil {
 		log.Println("Error loading cache:", err)
 	}
 
 	commands := []alfred.Command{
-		SceneCommand{workflow},
-		LightCommand{workflow},
-		LevelCommand{workflow},
-		SyncCommand{workflow},
-		HubCommand{workflow},
-		MeetHueCommand{workflow},
+		SceneCommand(0),
+		GroupCommand(0),
+		LightCommand(0),
+		LevelCommand(0),
+		SyncCommand(0),
+		HubCommand(0),
+		// MeetHueCommand(0),
 	}
 
 	workflow.Run(commands)
 }
 
-type Command struct {
-	workflow *alfred.Workflow
-}
-
 // hub ---------------------------------
 
-type HubCommand Command
+// HubCommand is for listing and binding to hubs
+type HubCommand int
 
+// Keyword returns the command keyword
 func (c HubCommand) Keyword() string {
 	return "hub"
 }
 
+// IsEnabled indicates whether the command is enabled
 func (c HubCommand) IsEnabled() bool {
 	return true
 }
 
-func (t HubCommand) MenuItem() alfred.Item {
-	return alfred.Item{
-		Title:        t.Keyword(),
-		Autocomplete: t.Keyword() + " ",
-		Valid:        alfred.Invalid,
-		Subtitle:     "Select a Hue hub to connect to"}
+// MenuItem returns the Alfred menu item for the command
+func (c HubCommand) MenuItem() alfred.Item {
+	return alfred.NewKeywordItem(c.Keyword(), "", " ", "Select a Hue hub to connect to")
 }
 
+// Items returns the list of found hubs
 func (c HubCommand) Items(prefix, query string) ([]alfred.Item, error) {
 	var items []alfred.Item
 
@@ -97,16 +103,23 @@ func (c HubCommand) Items(prefix, query string) ([]alfred.Item, error) {
 	}
 
 	for _, h := range hubs {
+		title := h.Name
+		if title == "" {
+			title = h.IPAddress
+		}
 		items = append(items, alfred.Item{
-			Title:        h.Name,
-			Arg:          "hub " + h.IpAddress,
-			Autocomplete: prefix + h.Name})
+			Title:        title,
+			Arg:          "hub " + h.IPAddress,
+			Autocomplete: prefix + h.Name,
+		})
 	}
+
 	return items, nil
 }
 
+// Do binds to a specific hub
 func (c HubCommand) Do(query string) (string, error) {
-	err := c.workflow.ShowMessage("Press the button on your hub, then click OK to continue...")
+	err := workflow.ShowMessage("Press the button on your hub, then click OK to continue...")
 	if err != nil {
 		return "", err
 	}
@@ -115,42 +128,48 @@ func (c HubCommand) Do(query string) (string, error) {
 	session, err := hue.NewSession(ipAddress, "jason0x43-alfred-hue")
 
 	if err != nil {
-		c.workflow.ShowMessage("There was an error accessing your hub:\n\n" + err.Error())
-		return "", err
-	} else {
-		config.IpAddress = session.IpAddress()
-		config.Username = session.Username()
-		c.workflow.ShowMessage("You've successfully connected to your hub!")
-
-		err = alfred.SaveJson(configFile, &config)
+		workflow.ShowMessage("There was an error accessing your hub:\n\n" + err.Error())
 		return "", err
 	}
+
+	config.IPAddress = session.IPAddress()
+	config.Username = session.Username()
+	workflow.ShowMessage("You've successfully connected to your hub!")
+
+	err = alfred.SaveJSON(configFile, &config)
+	return "", err
 }
 
 // level -------------------------------
 
-type LevelCommand Command
+// LevelCommand changes light levels
+type LevelCommand int
 
+// Keyword returns the level command keyword
 func (c LevelCommand) Keyword() string {
 	return "level"
 }
 
+// IsEnabled indicates whether the command is enabled
 func (c LevelCommand) IsEnabled() bool {
-	return config.IpAddress != "" && config.Username != ""
+	return config.IPAddress != "" && config.Username != ""
 }
 
-func (t LevelCommand) MenuItem() alfred.Item {
+// MenuItem returns the Alfred menu item for the command
+func (c LevelCommand) MenuItem() alfred.Item {
 	return alfred.Item{
-		Title:        t.Keyword(),
-		Autocomplete: t.Keyword() + " ",
+		Title:        c.Keyword(),
+		Autocomplete: c.Keyword() + " ",
 		Valid:        alfred.Invalid,
-		Subtitle:     "Change the light level for all lights"}
+		Subtitle:     "Change the light level for all lights",
+	}
 }
 
+// Items returns the list of lights that can be adjusted
 func (c LevelCommand) Items(prefix, query string) ([]alfred.Item, error) {
 	var items []alfred.Item
 
-	session := hue.OpenSession(config.IpAddress, config.Username)
+	session := hue.OpenSession(config.IPAddress, config.Username)
 	lights, err := session.Lights()
 	if err != nil {
 		return items, err
@@ -175,7 +194,7 @@ func (c LevelCommand) Items(prefix, query string) ([]alfred.Item, error) {
 	}
 
 	average := float64(total) / float64(count)
-	log.Printf("Total brightness: %f", total)
+	log.Printf("Total brightness: %d", total)
 	log.Printf("Light count: %d", count)
 	log.Printf("Average brightness: %f", average)
 	level := int(average)
@@ -204,6 +223,7 @@ func (c LevelCommand) Items(prefix, query string) ([]alfred.Item, error) {
 	return items, nil
 }
 
+// Do sets the level for one or more lights
 func (c LevelCommand) Do(query string) (out string, err error) {
 	parts := strings.SplitN(query, " ", 2)
 	var level int
@@ -225,16 +245,16 @@ func (c LevelCommand) Do(query string) (out string, err error) {
 		}
 	}
 
-	session := hue.OpenSession(config.IpAddress, config.Username)
+	session := hue.OpenSession(config.IPAddress, config.Username)
 	lights, _ := session.Lights()
 
-	for i, light := range lights {
-		if id == "" || i == id {
+	for _, light := range lights {
+		if id == "" || light.ID == id {
 			if light.State.On {
 				light.State.Brightness = level
-				err := session.SetLightState(light.Id, light.State)
+				err := session.SetLightState(light.ID, light.State)
 				if err != nil {
-					log.Printf("Error setting state for %v\n", light.Id)
+					log.Printf("Error setting state for %v\n", light.ID)
 				}
 			}
 		}
@@ -245,117 +265,147 @@ func (c LevelCommand) Do(query string) (out string, err error) {
 
 // scene -------------------------------
 
-type SceneCommand Command
+// SceneCommand lists and selects scenes
+type SceneCommand int
 
+// Keyword returns the command keyword
 func (c SceneCommand) Keyword() string {
 	return "scenes"
 }
 
+// IsEnabled indicates whether the command is enabled
 func (c SceneCommand) IsEnabled() bool {
-	return config.IpAddress != "" && config.Username != "" && len(cache.Scenes) > 1
+	return config.IPAddress != "" && config.Username != "" && len(cache.Scenes) > 1
 }
 
-func (t SceneCommand) MenuItem() alfred.Item {
+// MenuItem returns the Alfred menu item for the command
+func (c SceneCommand) MenuItem() alfred.Item {
 	return alfred.Item{
-		Title:        t.Keyword(),
-		Autocomplete: t.Keyword() + " ",
+		Title:        c.Keyword(),
+		Autocomplete: c.Keyword() + " ",
 		Valid:        alfred.Invalid,
-		Subtitle:     "Choose a scene"}
+		Subtitle:     "Choose a scene",
+	}
 }
 
-func (c SceneCommand) Items(prefix, query string) ([]alfred.Item, error) {
-	var items []alfred.Item
-	scenes := cache.Scenes
+// Items returns the list of scenes that can be selected
+func (c SceneCommand) Items(prefix, query string) (items []alfred.Item, err error) {
+	if err = checkRefresh(); err != nil {
+		return
+	}
 
-	for _, scene := range scenes {
-		name := scene.Name
-		matcher := fmt.Sprintf("%s %s %s", scene.Category, name, scene.Category)
+	var sceneMap = map[string]hue.Scene{}
 
-		if alfred.FuzzyMatches(matcher, query) {
-			lights := []string{}
-			for _, light := range scene.Lights {
-				lights = append(lights, light.Id)
-			}
-			sort.Sort(byValue(lights))
+	for _, scene := range cache.Scenes {
+		if scene.Owner != "none" && alfred.FuzzyMatches(scene.ShortName, query) {
+			fullName := scene.ShortName + ":" + strings.Join(scene.Lights, ",")
+			sceneMap[fullName] = scene
+		}
+	}
 
-			item := alfred.Item{
-				Title:        name,
-				SubtitleAll:  fmt.Sprintf("%v", lights),
-				Arg:          c.Keyword() + " " + scene.Id,
-				Autocomplete: prefix + name}
+	for _, scene := range sceneMap {
+		lights, _ := getLightNamesFromIDs(scene.Lights)
+		items = append(items, alfred.Item{
+			Title:        scene.ShortName,
+			SubtitleAll:  strings.Join(lights, ", "),
+			Autocomplete: prefix + scene.ShortName,
+			Arg:          "scenes " + scene.ID,
+		})
+	}
 
-			if scene.Category != "" {
-				item.SubtitleAll = scene.Category + ", " + item.SubtitleAll
-			}
+	items = alfred.SortItemsForKeyword(items, query)
+	return
+}
 
-			items = append(items, item)
+// Do selects a scene
+func (c SceneCommand) Do(query string) (out string, err error) {
+	session := hue.OpenSession(config.IPAddress, config.Username)
+	err = session.SetScene(query)
+	return
+}
+
+// group -------------------------------
+
+// GroupCommand lists and updates groups on the hub
+type GroupCommand int
+
+// Keyword returns the command keyword
+func (c GroupCommand) Keyword() string {
+	return "groups"
+}
+
+// IsEnabled indicates whether the command is enabled
+func (c GroupCommand) IsEnabled() bool {
+	return config.IPAddress != "" && config.Username != "" && len(cache.Groups) > 0
+}
+
+// MenuItem returns the Alfred menu item for the command
+func (c GroupCommand) MenuItem() alfred.Item {
+	return alfred.NewKeywordItem(c.Keyword(), "", "", "See light groups")
+}
+
+// Items returns the list of groups on the hub
+func (c GroupCommand) Items(prefix, query string) (items []alfred.Item, err error) {
+	if err = checkRefresh(); err != nil {
+		return
+	}
+
+	for _, group := range cache.Groups {
+		if alfred.FuzzyMatches(group.Name, query) {
+			lights, _ := getLightNamesFromIDs(group.Lights)
+
+			items = append(items, alfred.Item{
+				Title:       group.Name,
+				SubtitleAll: strings.Join(lights, ", "),
+				Valid:       alfred.Invalid,
+			})
 		}
 	}
 
 	sort.Sort(alfred.ByTitle(items))
-
-	return items, nil
-}
-
-func (c SceneCommand) Do(query string) (string, error) {
-	for _, scene := range cache.Scenes {
-		if scene.Id == query {
-			log.Printf("Setting scene to " + scene.Id)
-			session := hue.OpenSession(config.IpAddress, config.Username)
-			for _, state := range scene.Lights {
-				ls := state.ToLightState()
-				if scene.Recipe != "" {
-					ls.On = true
-				}
-				err := session.SetLightState(state.Id, ls)
-				if err != nil {
-					return "", err
-				}
-			}
-			return "", nil
-		}
-	}
-
-	return "", fmt.Errorf("Invaid scene %s", query)
+	return
 }
 
 // Light -------------------------------
 
-type LightCommand Command
+// LightCommand lists and updates light
+type LightCommand int
 
+// Keyword returns the command keyword
 func (c LightCommand) Keyword() string {
 	return "lights"
 }
 
+// IsEnabled indicates whether the command is enabled
 func (c LightCommand) IsEnabled() bool {
-	return config.IpAddress != "" && config.Username != ""
+	return config.IPAddress != "" && config.Username != ""
 }
 
-func (t LightCommand) MenuItem() alfred.Item {
-	return alfred.Item{
-		Title:        t.Keyword(),
-		Autocomplete: t.Keyword() + " ",
-		Valid:        alfred.Invalid,
-		Subtitle:     "Control individual lights"}
+// MenuItem returns the Alfred menu item for the command
+func (c LightCommand) MenuItem() alfred.Item {
+	return alfred.NewKeywordItem(c.Keyword(), "", " ", "Control individual lights")
 }
 
+// Items returns the list of lights known to the hub
 func (c LightCommand) Items(prefix, query string) ([]alfred.Item, error) {
 	var items []alfred.Item
-	session := hue.OpenSession(config.IpAddress, config.Username)
+	session := hue.OpenSession(config.IPAddress, config.Username)
 	lights, _ := session.Lights()
-	parts := alfred.SplitAndTrimQuery(query)
+	parts := alfred.TrimAllLeft(strings.Split(query, alfred.Separator))
 
 	if len(parts) == 1 {
-		for id, light := range lights {
-			name := fmt.Sprintf("%s: %s", id, light.Name)
+		for _, light := range lights {
+			name := fmt.Sprintf("%s: %s", light.ID, light.Name)
 
 			if alfred.FuzzyMatches(name, query) {
 				state, _ := json.Marshal(&hue.LightState{On: !light.State.On})
 				item := alfred.Item{
 					Title:        name,
-					Arg:          fmt.Sprintf("%s %s %s", c.Keyword(), id, state),
+					SubtitleAll:  fmt.Sprintf("Hue: %d, Sat: %d, Bri: %d", light.State.Hue, light.State.Saturation, light.State.Brightness),
+					Arg:          fmt.Sprintf("%s %s %s", c.Keyword(), light.ID, state),
 					Icon:         "off.png",
-					Autocomplete: prefix + id + alfred.Separator + " "}
+					Autocomplete: prefix + light.ID + alfred.Separator + " ",
+				}
 
 				if light.State.On {
 					item.Icon = "on.png"
@@ -365,10 +415,10 @@ func (c LightCommand) Items(prefix, query string) ([]alfred.Item, error) {
 			}
 		}
 
-		sort.Sort(alfred.ByTitle(items))
+		alfred.SortItemsForKeyword(items, query)
 	} else {
 		id := parts[0]
-		light := lights[id]
+		light, _ := cache.Lights[id]
 		prefix += id + alfred.Separator + " "
 		property := strings.ToLower(parts[1])
 
@@ -456,14 +506,25 @@ func (c LightCommand) Items(prefix, query string) ([]alfred.Item, error) {
 					Autocomplete: prefix + "Level" + alfred.Separator + " ",
 				})
 			}
+
+			// if alfred.FuzzyMatches("color", query) {
+			// 	r, g, b := light.GetColorRGB()
+			// 	items = append(items, alfred.Item{
+			// 		Title:        fmt.Sprintf("Color: rgb(%d,%d,%d)", light.State.Brightness),
+			// 		Icon:         icon,
+			// 		Valid:        alfred.Invalid,
+			// 		Autocomplete: prefix + "Color" + alfred.Separator + " ",
+			// 	})
+			// }
 		}
 	}
 
 	return items, nil
 }
 
+// Do updates a light
 func (c LightCommand) Do(query string) (string, error) {
-	session := hue.OpenSession(config.IpAddress, config.Username)
+	session := hue.OpenSession(config.IPAddress, config.Username)
 	parts := strings.SplitN(query, " ", 2)
 	log.Printf("Split '%s' into %s", query, parts)
 
@@ -484,81 +545,98 @@ func (c LightCommand) Do(query string) (string, error) {
 
 // Sync --------------------------------
 
-type SyncCommand Command
+// SyncCommand syncs light and scene data with the hub
+type SyncCommand int
 
+// Keyword returns the command keyword
 func (c SyncCommand) Keyword() string {
 	return "sync"
 }
 
+// IsEnabled incidates whether the command is enabled
 func (c SyncCommand) IsEnabled() bool {
-	return config.ApiToken != ""
+	return config.Username != ""
 }
 
-func (t SyncCommand) MenuItem() alfred.Item {
-	return alfred.Item{
-		Title:        t.Keyword(),
-		Autocomplete: t.Keyword(),
-		Valid:        alfred.Invalid,
-		Subtitle:     "Download your scenes from MeetHue.com"}
+// MenuItem returns the Alfred menu item for the command
+func (c SyncCommand) MenuItem() alfred.Item {
+	return alfred.NewKeywordItem(c.Keyword(), "", "", "Refresh light and scene data from the hub")
 }
 
-func (c SyncCommand) Items(prefix, query string) ([]alfred.Item, error) {
+// Items returns the status of the sync command
+func (c SyncCommand) Items(prefix, query string) (items []alfred.Item, err error) {
 	// TODO: Another option would be to "learn" the scenes by setting them
 	// using group/0 and retrieving the light details. Afterwords use the light
 	// details to set scenes.
 
-	var items []alfred.Item
-	session := hue.OpenMeetHueSession(config.ApiToken)
-	scenes, err := session.GetMeetHueScenes()
-	if err != nil {
-		return items, err
-	}
-
-	cache.Scenes = scenes
-	err = alfred.SaveJson(cacheFile, cache)
-	if err != nil {
-		log.Println("Error saving cache:", err)
+	if err = refresh(); err != nil {
+		return
 	}
 
 	items = append(items, alfred.Item{
-		Title: "Synchronized!"})
+		Title: "Refreshed!",
+	})
 
-	return items, nil
+	return
 }
 
 // MeetHue -----------------------------
 
-type MeetHueCommand Command
+// MeetHueCommand downloads scene data from meethue.com
+type MeetHueCommand int
 
+// Keyword returns the command keyword
 func (c MeetHueCommand) Keyword() string {
 	return "meethue"
 }
 
+// IsEnabled indicates whether the command is enabled
 func (c MeetHueCommand) IsEnabled() bool {
 	return config.Username != ""
 }
 
-func (t MeetHueCommand) MenuItem() alfred.Item {
+// MenuItem returns the Alfred menu item for the command
+func (c MeetHueCommand) MenuItem() alfred.Item {
 	item := alfred.Item{
-		Title:        t.Keyword(),
-		Autocomplete: t.Keyword(),
-		Arg:          "meethue",
-	}
-	if config.ApiToken == "" {
-		item.SubtitleAll = "Login to MeetHue.com to enable scene downloading"
-	} else {
-		item.SubtitleAll = "Logout of MeetHue.com"
+		Title:        c.Keyword(),
+		Autocomplete: c.Keyword() + " ",
+		Valid:        alfred.Invalid,
 	}
 	return item
 }
 
+// Items returns the status of the meethue command
 func (c MeetHueCommand) Items(prefix, query string) ([]alfred.Item, error) {
-	return []alfred.Item{c.MenuItem()}, nil
+	if config.APIToken == "" {
+		item := alfred.Item{
+			Title:        "login",
+			Autocomplete: prefix + "login",
+			SubtitleAll:  "Login to MeetHue.com to enable scene downloading",
+			Arg:          "meethue login",
+		}
+		return []alfred.Item{item}, nil
+	}
+
+	item1 := alfred.Item{
+		Title:        "download",
+		Autocomplete: prefix + "download",
+		SubtitleAll:  "Download scenes",
+		Arg:          "meethue download",
+	}
+	item2 := alfred.Item{
+		Title:        "logout",
+		Autocomplete: prefix + "logout",
+		SubtitleAll:  "Logout of MeetHue.com",
+		Arg:          "meethue logout",
+	}
+	return []alfred.Item{item1, item2}, nil
 }
 
+// Do downloads data from meethue
 func (c MeetHueCommand) Do(query string) (string, error) {
-	if config.ApiToken == "" {
-		btn, username, err := c.workflow.GetInput("Username", "", false)
+	switch query {
+	case "login":
+		btn, username, err := workflow.GetInput("Username", "", false)
 		if err != nil {
 			return "", err
 		}
@@ -569,7 +647,7 @@ func (c MeetHueCommand) Do(query string) (string, error) {
 		}
 		log.Printf("username: %s", username)
 
-		btn, password, err := c.workflow.GetInput("Password", "", true)
+		btn, password, err := workflow.GetInput("Password", "", true)
 		if btn != "Ok" {
 			log.Println("User didn't click OK")
 			return "", nil
@@ -578,28 +656,42 @@ func (c MeetHueCommand) Do(query string) (string, error) {
 
 		token, err := hue.GetMeetHueToken(username, password)
 		if err != nil {
-			c.workflow.ShowMessage("There was an error logging in:\n\n" + err.Error())
+			workflow.ShowMessage("There was an error logging in:\n\n" + err.Error())
 			return "", err
 		}
 
-		config.ApiToken = token
-		err = alfred.SaveJson(configFile, &config)
+		config.APIToken = token
+		err = alfred.SaveJSON(configFile, &config)
 		if err != nil {
 			return "", err
 		}
 
-		c.workflow.ShowMessage("Login successful!")
-	} else {
-		config.ApiToken = ""
-		err := alfred.SaveJson(configFile, &config)
+		workflow.ShowMessage("Login successful!")
+	case "logout":
+		config.APIToken = ""
+		err := alfred.SaveJSON(configFile, &config)
 		if err != nil {
 			return "", err
 		}
 
-		c.workflow.ShowMessage("Logged out")
+		workflow.ShowMessage("Logged out")
+	case "download":
+		session := hue.OpenMeetHueSession(config.APIToken)
+		scenes, err := session.GetMeetHueScenes()
+		if err != nil {
+			return "", err
+		}
+
+		cache.MeetHueScenes = scenes
+		err = alfred.SaveJSON(cacheFile, cache)
+		if err != nil {
+			log.Println("Error saving cache:", err)
+		}
+
+		return "Synchronized!", nil
 	}
 
-	return "", nil
+	return "", fmt.Errorf("Invalid command")
 }
 
 // Support functions -------------------
@@ -609,3 +701,33 @@ type byValue []string
 func (b byValue) Len() int           { return len(b) }
 func (b byValue) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 func (b byValue) Less(i, j int) bool { return b[i] < b[j] }
+
+func getLightNamesFromIDs(ids []string) (names []string, err error) {
+	for _, id := range ids {
+		light, _ := cache.Lights[id]
+		names = append(names, light.Name)
+	}
+	return
+}
+
+func refresh() (err error) {
+	session := hue.OpenSession(config.IPAddress, config.Username)
+	if cache.Lights, err = session.Lights(); err != nil {
+		return
+	}
+	if cache.Scenes, err = session.Scenes(); err != nil {
+		return
+	}
+	if cache.Groups, err = session.Groups(); err != nil {
+		return
+	}
+	cache.LastUpdate = time.Now()
+	return alfred.SaveJSON(cacheFile, &cache)
+}
+
+func checkRefresh() error {
+	if time.Now().Sub(cache.LastUpdate) > time.Duration(1)*time.Minute {
+		return refresh()
+	}
+	return nil
+}
