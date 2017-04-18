@@ -44,9 +44,10 @@ func (c LightCommand) Items(arg, data string) (items []alfred.Item, err error) {
 			name := fmt.Sprintf("%s: %s", light.ID, light.Name)
 
 			if alfred.FuzzyMatches(name, arg) {
+				r, g, b := light.GetColorRGB()
 				item := alfred.Item{
 					Title:        name,
-					Subtitle:     fmt.Sprintf("Hue: %d, Sat: %d, Bri: %d", light.State.Hue, light.State.Saturation, light.State.Brightness),
+					Subtitle:     fmt.Sprintf("Hue: %d, Sat: %d, Bri: %d, RGB: #%02x%02x%02x", light.State.Hue, light.State.Saturation, light.State.Brightness, r, g, b),
 					Icon:         "off.png",
 					Autocomplete: light.ID,
 					Arg: &alfred.ItemArg{
