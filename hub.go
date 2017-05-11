@@ -51,7 +51,7 @@ func (c HubCommand) Do(data string) (out string, err error) {
 	}
 
 	var session hue.Session
-	if session, err = hue.NewSession(data, "jason0x43-alfred-hue"); err != nil {
+	if session, err = hue.NewSession(data); err != nil {
 		workflow.ShowMessage("There was an error accessing your hub:\n\n" + err.Error())
 		return
 	}
