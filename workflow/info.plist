@@ -472,7 +472,7 @@
 		</dict>
 	</array>
 	<key>readme</key>
-	<string>Version: 1.0.3</string>
+	<string>This workflow allows basic control of Hue lights.</string>
 	<key>uidata</key>
 	<dict>
 		<key>369F3215-FF5F-4A03-B05C-5637B76508EC</key>
@@ -560,6 +560,8 @@
 			<integer>400</integer>
 		</dict>
 	</dict>
+	<key>version</key>
+	<string>2.0.0-pre</string>
 	<key>webaddress</key>
 	<string>https://github.com/jason0x43/alfred-hue</string>
 </dict>
